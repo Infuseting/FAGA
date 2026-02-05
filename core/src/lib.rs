@@ -49,7 +49,7 @@ pub fn init() {
         .unwrap();
 
     let context = { softbuffer::Context::new(&window) }.unwrap();
-    let mut surface = { softbuffer::Surface::new(&context, &window) }.unwrap();
+    let surface = { softbuffer::Surface::new(&context, &window) }.unwrap();
 
     log::info!("🎨 FAGA Core: Prêt à dessiner.");
 
@@ -82,49 +82,90 @@ fn run(
                 event: WindowEvent::RedrawRequested,
                 window_id,
             } if window_id == window.id() => {
-                // 1. Récupérer les dimensions
                 let (width, height) = {
                     let size = window.inner_size();
                     (size.width, size.height)
                 };
 
-                // 2. Redimensionner la mémoire vidéo si besoin
                 if let (Some(w), Some(h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
                     surface.resize(w, h).unwrap();
                     let mut buffer = surface.buffer_mut().unwrap();
-                    let buffer_width = width as usize;
-                    let buffer_height = height as usize;
+
+                    let html = "
+                        <html>
+                            <body>
+                                <div class=\"header\">FAGA BROWSER</div>
+                                <div class=\"content\">
+                                    <div class=\"card\">Carte 1</div>
+                                    <div class=\"card\">Carte 2</div>
+                                </div>
+                            </body>
+                        </html>
+                    ".to_string();
+
+                    let css = "
+                        body { background: black; }
+                        .header { height: 80px; background: grey; margin-bottom: 20px; }
+                        .content { background: white; width: 600px; height: 400px; margin-left: 50px; }
+                        .card { background: red; width: 100px; height: 100px; margin-top: 20px; margin-left: 20px; }
+                    ".to_string();
+
+                    let dom_root = html::parse(html);
+                    let stylesheet = css::parse(css);
 
 
-                    buffer.fill(0x00101030);
+                    let style_root = css::style_tree(&dom_root, &stylesheet);
 
-                    draw_rect(&mut buffer, buffer_width,
-                              0, 0, buffer_width, 50,
-                              0x00404040
-                    );
+                    let mut viewport = layout::Dimensions::default();
+                    viewport.content.width = width as f32;
+                    viewport.content.height = height as f32;
+                    let layout_root = layout::layout_tree(&style_root, viewport);
 
-                    if buffer_width > 40 && buffer_height > 70 {
-                        draw_rect(&mut buffer, buffer_width,
-                                  20, 70,
-                                  buffer_width - 40,
-                                  buffer_height - 90,
-                                  0x00FFFFFF
-                        );
+
+                    let display_list = paint::build_display_list(&layout_root);
+
+
+                    buffer.fill(0);
+
+                    for command in display_list {
+                        match command {
+                            paint::DisplayCommand::SolidColor(color, rect) => {
+                                draw_rect_safe(&mut buffer, width as usize, rect, color);
+                            }
+                        }
                     }
 
                     buffer.present().unwrap();
                 }
             }
-
-            Event::WindowEvent {
-                event: WindowEvent::Resized(..),
-                ..
-            } => {
+            Event::WindowEvent { event: WindowEvent::Resized(..), .. } => {
                 window.request_redraw();
             }
-
             _ => ()
         }
-
     });
+}
+
+
+fn draw_rect_safe(buffer: &mut [u32], buffer_width: usize, rect: layout::Rect, color: u32) {
+    let x0 = rect.x as usize;
+    let y0 = rect.y as usize;
+    let x1 = (rect.x + rect.width) as usize;
+    let y1 = (rect.y + rect.height) as usize;
+
+    let buffer_height = buffer.len() / buffer_width;
+
+    let x0 = x0.clamp(0, buffer_width);
+    let x1 = x1.clamp(0, buffer_width);
+    let y0 = y0.clamp(0, buffer_height);
+    let y1 = y1.clamp(0, buffer_height);
+
+    for y in y0..y1 {
+        for x in x0..x1 {
+            let index = y * buffer_width + x;
+            if index < buffer.len() {
+                buffer[index] = color;
+            }
+        }
+    }
 }

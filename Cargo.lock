@@ -9,7 +9,6 @@ dependencies = [
  "core",
  "env_logger",
  "log",
- "net",
 ]
 
 [[package]]
@@ -82,10 +81,6 @@ name = "android-properties"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc7eb209b1518d6bb87b283c20095f5228ecda460da70b44f0802523dea6da04"
-
-[[package]]
-name = "app"
-version = "0.1.0"
 
 [[package]]
 name = "arrayref"
@@ -259,7 +254,11 @@ dependencies = [
 name = "core"
 version = "0.1.0"
 dependencies = [
+ "css",
+ "html",
+ "layout",
  "log",
+ "paint",
  "softbuffer",
  "winit",
 ]
@@ -322,6 +321,10 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 [[package]]
 name = "css"
 version = "0.1.0"
+dependencies = [
+ "html",
+ "log",
+]
 
 [[package]]
 name = "ctor-lite"
@@ -763,6 +766,10 @@ dependencies = [
 [[package]]
 name = "layout"
 version = "0.1.0"
+dependencies = [
+ "css",
+ "html",
+]
 
 [[package]]
 name = "libc"
@@ -1059,6 +1066,10 @@ dependencies = [
 [[package]]
 name = "paint"
 version = "0.1.0"
+dependencies = [
+ "css",
+ "layout",
+]
 
 [[package]]
 name = "percent-encoding"
