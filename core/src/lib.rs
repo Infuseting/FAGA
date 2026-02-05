@@ -4,6 +4,8 @@ use winit::{
     window::WindowBuilder,
 };
 
+use fontdue::Font;
+
 use std::num::NonZeroU32;
 use winit::window::Window;
 /*
@@ -50,12 +52,13 @@ pub fn init() {
 
     let context = { softbuffer::Context::new(&window) }.unwrap();
     let surface = { softbuffer::Surface::new(&context, &window) }.unwrap();
-
+    let font_data = std::fs::read("assets/ttf/Roboto-Regular.ttf").expect("Impossible de trouver assets/ttf/Roboto-Regular.ttf");
+    let font = Font::from_bytes(font_data.as_slice(), fontdue::FontSettings::default()).unwrap();
     log::info!("🎨 FAGA Core: Prêt à dessiner.");
 
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    run(event_loop, &window, surface);
+    run(event_loop, &window, surface, font);
 }
 
 /*
@@ -68,6 +71,7 @@ fn run(
     event_loop: EventLoop<()>,
     window: &Window,
     mut surface: softbuffer::Surface<&Window, &Window>,
+    font : Font
 ) {
     let _ = event_loop.run(move |event, elwt| {
         match event {
@@ -96,8 +100,9 @@ fn run(
                             <body>
                                 <div class=\"header\">FAGA BROWSER</div>
                                 <div class=\"content\">
-                                    <div class=\"card\">Carte 1</div>
-                                    <div class=\"card\">Carte 2</div>
+                                    <div class=\"card\">A</div>
+                                    <div class=\"card\">B</div>
+                                    <p>Ceci est un test de texte.</p>
                                 </div>
                             </body>
                         </html>
@@ -108,6 +113,7 @@ fn run(
                         .header { height: 80px; background: grey; margin-bottom: 20px; }
                         .content { background: white; width: 600px; height: 400px; margin-left: 50px; }
                         .card { background: red; width: 100px; height: 100px; margin-top: 20px; margin-left: 20px; }
+                        p { color: black; margin-left: 20px; }
                     ".to_string();
 
                     let dom_root = html::parse(html);
@@ -120,17 +126,17 @@ fn run(
                     viewport.content.width = width as f32;
                     viewport.content.height = height as f32;
                     let layout_root = layout::layout_tree(&style_root, viewport);
-
-
                     let display_list = paint::build_display_list(&layout_root);
 
-
-                    buffer.fill(0);
+                    buffer.fill(0xFFFFFFFF);
 
                     for command in display_list {
                         match command {
                             paint::DisplayCommand::SolidColor(color, rect) => {
                                 draw_rect_safe(&mut buffer, width as usize, rect, color);
+                            }
+                            paint::DisplayCommand::Text(text, rect, color) => {
+                                draw_text_safe(&mut buffer, width as usize, &font, &text, rect, color);
                             }
                         }
                     }
@@ -167,5 +173,49 @@ fn draw_rect_safe(buffer: &mut [u32], buffer_width: usize, rect: layout::Rect, c
                 buffer[index] = color;
             }
         }
+    }
+}
+
+fn draw_text_safe(
+    buffer: &mut [u32],
+    buffer_width: usize,
+    font: &Font,
+    text: &str,
+    rect: layout::Rect,
+    color: u32
+) {
+    let size = 18.0;
+    let mut x_cursor = rect.x;
+    let y_cursor = rect.y;
+    let buffer_height = buffer.len() / buffer_width;
+
+    for char in text.chars() {
+        let (metrics, bitmap) = font.rasterize(char, size);
+
+        for row in 0..metrics.height {
+            for col in 0..metrics.width {
+                let coverage = bitmap[row * metrics.width + col] as f32 / 255.0;
+
+                if coverage > 0.0 {
+                    let pixel_x = x_cursor as i32 + col as i32 + metrics.xmin;
+                    let pixel_y = y_cursor as i32 + size as i32 - metrics.ymin - metrics.height as i32 + row as i32;
+
+                    if pixel_x >= 0 && pixel_y >= 0 {
+                        let px = pixel_x as usize;
+                        let py = pixel_y as usize;
+
+                        if px < buffer_width && py < buffer_height {
+                            let index = py * buffer_width + px;
+
+                            if index < buffer.len() && coverage > 0.5 {
+                                buffer[index] = color;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        x_cursor += metrics.advance_width;
     }
 }

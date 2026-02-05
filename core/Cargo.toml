@@ -7,7 +7,7 @@ edition = "2024"
 winit = "0.29.10"
 softbuffer = "0.4.1"
 log = "0.4"
-
+fontdue = "0.7"
 html = { path = "../html" }
 css = { path = "../css" }
 layout = { path = "../layout" }

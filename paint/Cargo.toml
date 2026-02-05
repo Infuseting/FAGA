@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 layout = { path = "../layout" }
 css = { path = "../css" }
+html = { path = "../html" }
+fontdue="0.7"

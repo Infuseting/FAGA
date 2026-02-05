@@ -1,9 +1,11 @@
 use layout::{LayoutBox, BoxType, Rect};
 use css::{Value, Unit};
+use html::{NodeType};
 
 #[derive(Debug)]
 pub enum DisplayCommand {
     SolidColor(u32, Rect),
+    Text(String, Rect, u32),
 }
 
 pub type DisplayList = Vec<DisplayCommand>;
@@ -17,7 +19,7 @@ pub fn build_display_list(layout_root: &LayoutBox) -> DisplayList {
 fn render_layout_box(list: &mut DisplayList, layout_box: &LayoutBox) {
     render_background(list, layout_box);
     render_borders(list, layout_box);
-
+    render_text(list, layout_box);
     for child in &layout_box.children {
         render_layout_box(list, child);
     }
@@ -29,6 +31,25 @@ fn render_background(list: &mut DisplayList, layout_box: &LayoutBox) {
             color,
             layout_box.dimensions.border_box()
         ));
+    }
+}
+
+fn render_text(list: &mut DisplayList, layout_box: &LayoutBox) {
+    let node_opt = match layout_box.box_type {
+        BoxType::BlockNode(styled_node) | BoxType::InlineNode(styled_node) => Some(styled_node.node),
+        _ => None,
+    };
+
+    if let Some(node) = node_opt {
+        if let NodeType::Text(ref text_content) = node.node_type {
+            let color = get_color(layout_box, "color").unwrap_or(0xFF000000);
+
+            list.push(DisplayCommand::Text(
+                text_content.clone(),
+                layout_box.dimensions.content,
+                color
+            ));
+        }
     }
 }
 
