@@ -1,13 +1,11 @@
 <div align="center">
   <h1>FAGA Browser</h1>
-
   <p>
     <strong>Free. Anonymous. Guarded. Access.</strong><br>
     Le navigateur web souverain, forgé entièrement en Rust.
   </p>
-
   <p>
-    <a href="https://github.com/Infuseting/FAGA/actions"><img src="https://img.shields.io/github/actions/workflow/status/Infuseting/FAGA/ci.yml?branch=main&style=flat-square" alt="Build Status" /></a>
+    <a href="https://github.com/Infuseting/FAGA/actions"><img src="https://img.shields.io/badge/build-experimental-orange?style=flat-square" alt="Build Status" /></a>
     <a href="https://crates.io/"><img src="https://img.shields.io/badge/rust-1.75%2B-orange?style=flat-square&logo=rust" alt="Rust Version" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License" /></a>
     <a href="#"><img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey?style=flat-square" alt="Platform" /></a>
@@ -23,133 +21,142 @@
   </h4>
 </div>
 
-<br>
-
 ---
 
 ## 📖 À propos
 
-**FAGA** (Free Anonymous Guarded Access) est un projet d'ingénierie système visant à recréer un navigateur web moderne "from scratch", sans utiliser les moteurs existants (Chromium, Gecko, WebKit).
+**FAGA** (Free Anonymous Guarded Access) est un projet ambitieux visant à implémenter un navigateur moderne écrit en **Rust**, depuis les parsers HTML/CSS jusqu'à l'UI native (via `iced`). L'objectif est d'expérimenter un moteur léger, sûr et respectueux de la vie privée.
 
-Écrit entièrement en **Rust**, FAGA vise à prouver qu'il est possible de naviguer sur le web moderne avec une empreinte mémoire minimale, tout en garantissant une confidentialité absolue par défaut. Son architecture modulaire permet de basculer entre une interface utilisateur futuriste et un mode "héritage" optimisé pour les ressources limitées.
-
-> ⚠️ **État du projet :** Alpha / Expérimental. Ce logiciel est en développement actif et n'est pas encore recommandé pour une utilisation quotidienne critique.
+> ⚠️ État : Alpha / expérimental — beaucoup de composants sont en prototype. Ne l'utilisez pas pour des besoins critiques.
 
 ---
 
-## ⚡ Fonctionnalités Clés
+## ⚡ Fonctionnalités clés (implémentées dans cette branche)
 
-### 🛡️ Privacy by Design (Confidentialité)
-* **Isolation Totale (State Partitioning) :** Chaque site web possède son propre conteneur de données. Les cookies tiers sont techniquement impossibles à croiser.
-* **Anti-Fingerprinting Actif :** FAGA injecte du bruit mathématique dans les canvas HTML5 et normalise les APIs système pour rendre votre empreinte numérique indiscernable de la masse.
-* **Network Shield :** Blocage natif des trackers et publicités au niveau de la stack réseau (Crate `faga_net`), sans besoin d'extension.
-
-### 🚀 Performance & Robustesse
-* **Sûreté Mémoire :** Garanti par le compilateur Rust. Élimination des failles de type *buffer overflows* et *use-after-free*.
-* **Moteur Léger :** Un pipeline de rendu personnalisé qui privilégie la vitesse et la faible consommation RAM.
-* **Mises à jour Sécurisées :** Système d'auto-update vérifié par signature cryptographique (Ed25519) basé sur *The Update Framework (TUF)*.
-
-### 🎨 Interface Hybride (Dual UI)
-FAGA s'adapte à votre matériel et vos goûts :
-1.  **Mode Moderne :** Design fluide, transparences, coins arrondis et animations GPU (via `Iced`).
-2.  **Mode Classique :** Interface dense, rectangulaire, sans animation ("Pixel Perfect"), pour une consommation CPU proche de zéro.
+- UI native multi-OS (Windows / macOS / Linux) avec barre d'onglets, barre d'adresse, contrôles de fenêtre personnalisés.
+- Parser HTML/CSS minimal fonctionnel et renderer qui applique :
+  - Unités : px, em, rem, %, vw, vh, pt.
+  - Marges, paddings, width (y compris `width:60vw`) et `margin: 15vh auto` (centrage horizontal lorsque la largeur est définie).
+  - Styles inline et feuille de style par défaut (`assets/css/default.css`).
+- Résolution des `em` et `rem` relative au parent / root. Correction du calcul d'unités relatives.
+- Liens `<a href>` cliquables ; résolution d'URLs relatives vers absolues (`resolve_url`).
+- DevTools simplifié (F12 / Ctrl+Shift+I) : panels Elements / Styles / Console / Network pour inspection et logs.
+- Support des touches et événements fenêtre (redimensionnement, drag pour déplacer la fenêtre, contrôles min/max/close).
+- Logging via `env_logger` (activer avec `RUST_LOG`).
 
 ---
 
-## 🏗️ Architecture Technique
+## 🏗️ Architecture (aperçu)
 
-FAGA adopte une architecture modulaire ("Workspace") pour séparer strictement les responsabilités.
+Le projet est organisé en modules :
 
-### Structure des Modules (Crates)
+- `src/main.rs` : UI (iced), gestion des onglets, rendu final et DevTools.
+- `src/parser/` : parsers HTML, CSS, DOM et `HtmlRenderer` (calcule `ComputedStyles` et génère un `RenderNode`).
+- `src/network/` : client HTTP minimal utilisé pour charger les pages.
+- `assets/css/default.css` : CSS par défaut chargé pour émuler un style de navigateur.
 
-| Module            | Rôle | Stack Technique |
-|:------------------| :--- | :--- |
-| **`app`**        | Point d'entrée. Orchestration des processus. | `tokio` |
-| **`core`**   | Gestion de la fenêtre et boucle d'événements. | `winit` |
-| **`net`**    | Client HTTP/HTTPS et filtrage de contenu. | `hyper`, `rustls` |
-| **`html`**   | Lexer et Parser HTML (Construction du DOM). | *Custom (From Scratch)* |
-| **`css`**    | Parser CSS et moteur de sélecteurs. | *Custom (From Scratch)* |
-| **`layout`** | Calcul de la géométrie (Box Model). | *Custom*, `taffy` |
-| **`paint`**  | Rasterizer (Transformation en pixels). | `softbuffer`, `tiny-skia` |
+Diagramme (pipeline simplifié) :
 
-### Diagramme de Flux (Pipeline de Rendu)
-
-```mermaid
-graph LR
-    User(Utilisateur) -->|URL| Net[faga_net]
-    Net -->|HTML Bytes| Parser{faga_html}
-    Parser -->|DOM Tree| Layout[faga_layout]
-    Net -->|CSS Bytes| CSS{faga_css}
-    CSS -->|CSSOM| Layout
-    Layout -->|Render Tree| Paint[faga_paint]
-    Paint -->|Pixel Buffer| Core[faga_core]
-    Core -->|Window| Screen(Écran)
-
+```
+Network -> HTML bytes -> HTML Parser -> DOM
+         CSS bytes  -> CSS Parser  -> CSSOM
+DOM + CSSOM -> Computed Styles -> Render tree -> UI (iced)
 ```
 
 ---
 
-## 🛠️ Installation
+## 🛠️ Installation & build
 
 ### Prérequis
+- Rust (stable) — Rust 1.75+ recommandé.
+- Outils système (Linux) : `pkg-config`, `libssl-dev`, `libfontconfig`, `libfreetype` si nécessaire.
 
-* **Rust & Cargo :** Version stable 1.75+ requise.
-```bash
-curl --proto '=https' --tlsv1.2 -sSf [https://sh.rustup.rs](https://sh.rustup.rs) | sh
+### Build & run
 
-```
+Sous PowerShell (Windows) :
 
-
-* **Dépendances Linux (Ubuntu/Debian) :**
-```bash
-sudo apt install pkg-config libssl-dev libfreetype6-dev libfontconfig1-dev
-
-```
-
-
-
-### Compilation
-
-1. **Cloner le dépôt :**
-```bash
-git clone [https://github.com/votre-user/faga.git](https://github.com/votre-user/faga.git)
-cd faga
-
-```
-
-
-2. **Lancer en mode développement :**
-```bash
+```powershell
+cd C:\Users\Arthur\RustroverProjects\FAGA
+# debug
 cargo run
-```
-
-
-3. **Compiler pour la production (Optimisé) :**
-```bash
+# release
 cargo build --release
 ```
 
+Sous bash (Linux / macOS) :
 
-L'exécutable final se trouvera dans `./target/release/faga_app`.
+```bash
+cd /chemin/vers/FAGA
+cargo run
+# ou
+cargo build --release
+```
+
+Logs utiles :
+
+```bash
+# niveau info
+RUST_LOG=info cargo run
+# niveau debug (plus verbeux)
+RUST_LOG=debug cargo run
+```
 
 ---
 
-## 🤝 Contribuer
+## 🧭 Raccourcis et interactions
 
-FAGA est un projet ambitieux. Toute aide est la bienvenue, que ce soit pour le moteur de rendu, l'interface ou la documentation.
+- F12 ou Ctrl+Shift+I : ouvrir/fermer DevTools
+- Cliquer un lien `<a>` : navigation (résolution relative automatique)
+- Cliquer-glisser un onglet : réordonner
+- Glisser la barre d'onglets : déplacer la fenêtre
+- Boutons personnalisés en haut à droite : minimiser / maximiser / fermer
 
-1. Forkez le projet.
-2. Créez votre branche (`git checkout -b feature/AmazingFeature`).
-3. Commitez vos changements (`git commit -m 'Add some AmazingFeature'`).
-4. Poussez vers la branche (`git push origin feature/AmazingFeature`).
-5. Ouvrez une Pull Request.
+---
 
-Veuillez consulter [CONTRIBUTING.md](https://www.google.com/search?q=CONTRIBUTING.md) pour les détails.
+## 🔎 Tests rapides / Vérifications
 
---- 
+- Tester `width:60vw;margin:15vh auto` :
+  - Ouvrir une page contenant `<style>body{width:60vw;margin:15vh auto}</style>`
+  - Redimensionner la fenêtre : la largeur du contenu doit suivre (~60% de la largeur réelle) et la marge haut être ~15% de la hauteur.
+- Inspecter un `h1` via DevTools pour vérifier le calcul `em` (devtools loge les tailles avant/après).
+- Cliquer sur les liens pour vérifier la navigation et la résolution d'URL.
+
+---
+
+## ⚠️ Limitations connues
+
+- Parser HTML/CSS basique : pas de cascade complète, pas de layout CSS avancé (flex/grid/positioning complexe).
+- Pas (encore) de support JavaScript.
+- Multi-fenêtre / détachement d'onglet vers nouvelle fenêtre : pas implémenté (TODO : iced multi-window).
+- Moteur réseau minimal : fonctionnalités limités (cookies/redirects/HTTP2/SSL edge cases).
+- Accessibilité : tailles de cibles pensées pour l'accessibilité mais tests complémentaires nécessaires.
+
+---
+
+## 🛣️ Roadmap (prochaine priorité)
+
+1. Stabiliser le rendu des unités (em/rem/vw/vh) → DONE (implémenté pour la branche courante)
+2. Ajouter plus de tests unitaires pour `resolve_url`, parser CSS (vw/vh/em)
+3. Améliorer le layout : support des blocs inline/flow, marges collapse, boîtes
+4. Explorer une option JS (intégration d'un moteur JS sandboxé) — gros chantier
+5. Multi-fenêtre et drag & drop inter-fenêtres
+6. Polices fallback / meilleur support d'encodages exotiques
+
+---
+
+## 🤝 Contribution
+Contributions bienvenues : fork → branche → PR. Merci d'ajouter des tests et de documenter les changements majeurs.
+
+---
 
 ## 📄 Licence
+Ce projet est sous licence **MIT** — voir le fichier `LICENSE`.
 
-Ce projet est distribué sous la licence **MIT**. Voir le fichier [LICENSE](https://www.google.com/search?q=LICENSE) pour plus d'informations.
+---
 
-Copyright © 2024-2025 - **FAGA Team**.
+Si vous voulez que j'ajoute :
+- des pages HTML de test sous `assets/tests/` ;
+- des tests unitaires pour `resolve_url` ;
+- une checklist détaillée pour le renderer CSS ;
+
+dites-moi quelles options vous préférez et je les ajoute.

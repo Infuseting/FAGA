@@ -1,13 +1,29 @@
 [package]
 name = "Faga"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
 authors = ["Infuseting"]
 license = "MIT"
 
 [dependencies]
 env_logger = "0.10"
 log = "0.4"
+iced = { version = "0.12", features = ["canvas", "image", "tokio"] }
+
+# Networking - HTTP/HTTPS
+reqwest = { version = "0.11", features = ["rustls-tls", "cookies", "gzip", "brotli"] }
+tokio = { version = "1", features = ["full"] }
+url = "2.5"
+
+# HTML Parsing
+scraper = "0.18"
+html5ever = "0.27"
+
+# CSS Parsing
+cssparser = "0.33"
+
+# Async utilities
+futures = "0.3"
 
 [workspace]
 resolver = "2"
